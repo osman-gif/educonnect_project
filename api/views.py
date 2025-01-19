@@ -46,6 +46,7 @@ from rest_framework.filters import SearchFilter
 CustomUser = get_user_model()
 
 class UnifiedRegistrationView(APIView):
+    
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = RegistrationSerializer(data=request.data)
@@ -111,7 +112,7 @@ class LogoutView(APIView):
 
 # Teacher views----------------------------------------------------
 
-class CurrentTeacherProfileView(RetrieveAPIView):
+class CurrentTeacherProfileView(RetrieveUpdateAPIView):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated]
 
@@ -146,7 +147,7 @@ class SchoolListView(ListAPIView):
     serializer_class = SchoolProfileSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-class CurrentSchoolProfileView(RetrieveAPIView):
+class CurrentSchoolProfileView(RetrieveUpdateAPIView):
     serializer_class = SchoolProfileSerializer
     permission_classes = [IsAuthenticated]
 
@@ -196,7 +197,7 @@ class JobPostingListCreateView(ListCreateAPIView):
     """
     queryset = JobPosting.objects.all()
     serializer_class = JobPostingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchool]
 
 
     def get_queryset(self):
@@ -241,6 +242,7 @@ class ApplicationListCreateView(ListCreateAPIView):
             raise PermissionDenied("Only teachers can apply for jobs.")
 
 class ListAllApplications(ListAPIView):
+    """List all applications of all teachers"""
     permission_classes = [AllowAny]
     serializer_class = ApplicationSerializer
     queryset = Application.objects.all()
@@ -262,7 +264,7 @@ class ApplicationDetailView(RetrieveUpdateDestroyAPIView):
 
 class SchoolJobApplicationsView(ListAPIView):
 
-    """List all Applications to the current School
+    """List all Applications to the current School's jobs
     """
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated, IsSchool]
@@ -278,21 +280,42 @@ class SchoolJobApplicationsView(ListAPIView):
             PermissionDenied("only schools can perfrom this action")
         return Application.objects.none()
 
-class JobSearchView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request):
-        keyword = request.query_params.get('q', '')
+# class JobSearchView(APIView):
+#     """
+#     API view to search for job postings by a keyword.
 
-        query = Q()
+#     This view allows users to filter job postings based on a keyword provided
+#     as a query parameter. The keyword is matched against the "subject" field
+#     of the job postings.
 
-        if keyword:
-            query &= Q(subject__icontains=keyword)
+#     Attributes:
+#         permission_classes: Grants access to all users (no authentication required).
+
+#     Methods:
+#         get(request):
+#             Processes the GET request to search for job postings by the given keyword.
+#             Query parameter:
+#                 - q: The keyword to search in the "subject" field of job postings.
+#             Returns:
+#                 A JSON response with a serialized list of matching job postings.
+#     """
+#     permission_classes = [AllowAny]
+#     def get(self, request):
+#         keyword = request.query_params.get('q', '')
+
+#         query = Q()
+
+#         if keyword:
+#             query &= Q(subject__icontains=keyword)
         
-        jobs = JobPosting.objects.filter(query)
-        serializer = JobPostingSerializer(jobs, many=True)
-        return Response(serializer.data)
+#         jobs = JobPosting.objects.filter(query)
+#         serializer = JobPostingSerializer(jobs, many=True)
+#         return Response(serializer.data)
 
 class JobPostingSearchView(ListAPIView):
+    """
+    search for job postings.
+    """
     permission_classes = [AllowAny]
     queryset = JobPosting.objects.all()
     serializer_class = JobPostingSerializer
@@ -300,8 +323,11 @@ class JobPostingSearchView(ListAPIView):
     search_fields = ['title', 'description', 'subject', 'location']
 
 class ApplicationSearchView(ListAPIView):
+    """
+    search for applications.
+    """
     permission_classes = [AllowAny]
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
     filter_backends = [SearchFilter]
-    search_fields = ['teacher__user__username', 'job__title', 'status']
+    search_fields = ['teacher__user__username', 'status']
